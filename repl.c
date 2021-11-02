@@ -2,21 +2,21 @@
 #include <stdlib.h>
 #include "mpc.h"
 
-
 /* IF windows compilation use follows functions */
 #ifdef _WIN32
 #include <string.h>
 
 static char buffer[2048];
 
-
 /* a function which imitate readline */
 char* readline(char* prompt) {
+
 	fputs(prompt,stdout);
 	fgets(buffer, 2048, stdin);
 	char* cpy = malloc(strlen(buffer)+1);
 	strcpy(cpy, buffer);
 	cpy[strlen(cpy)-1] = "\0";
+
 	return cpy;
 }
 
@@ -32,19 +32,17 @@ void add_history(char* unused) {}
 #include <editline/readline.h>
 #include <editline/history.h>
 
-
 int main(int argc, char** argv) {
 	
 	/* create some parsings */
-
 	mpc_parser_t* Number = mpc_new("number");
 	mpc_parser_t* Operator = mpc_new("operator");
 	mpc_parser_t* Expr = mpc_new("expr");
 	mpc_parser_t* Lispy = mpc_new("lispy");
 
 	/* defining the language */
-
 	mpca_lang(MPCA_LANG_DEFAULT,
+			
 		"						        \
 			number   : /-?[0-9]+/ ;				        \
 			operator : '+' | '-' | '*' | '/' ;		        \
@@ -53,23 +51,53 @@ int main(int argc, char** argv) {
 		",
 		Number, Operator, Expr, Lispy );		
 	
-	
 	puts("Lispy Version 0.0.0.0.1");
 	puts("Press Ctrl+c to Exit\n");
 
+	long eval_op(long x, char* op, long y){
+		
+		if (strcmp(op, "+") == 0) { return x + y; }
+		if (strcmp(op, "-") == 0) { return x - y; }
+		if (strcmp(op, "*") == 0) { return x * y; }
+		if (strcmp(op, "/") == 0) { return x / y; }
+		
+		return 0;
+	}
+
+	long eval(mpc_ast_t* t){
+	
+		/* in case number, return */	
+		if (strstr(t->tag, "number")){
+			return atoi(t->contents);
+		}
+
+		char* op = t->children[1]->contents;
+
+		long x = eval(t->children[2]);
+
+		int i = 3;
+
+		while (strstr(t->children[i]->tag, "expr")) {
+			x = eval_op(x, op, eval(t->children[i]));
+			i++;
+		}
+
+		return x;
+	}	
+
 	while (1){
 	
-	/* now in any case readline is define */
-	char* input = readline("lispy> ");
+		/* now in any case readline is define */
+		char* input = readline("lispy> ");
 		mpc_result_t r;
-		
-
+			
 		/* checking the parser Lispy */	
 		add_history(input);
 
 		/* copying the parser result to "r" variable */
 		if (mpc_parse("<stdin>", input, Lispy, &r)){
-			mpc_ast_print(r.output);
+			long result = eval(r.output);
+			printf("%li\n", result);
 			mpc_ast_delete(r.output);
 		}else {
 			mpc_err_print(r.error);
