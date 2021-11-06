@@ -67,20 +67,67 @@ int main(int argc, char** argv) {
     int err;
   } lval;
 
-  /* creating a new lval for number */
-  lval lval_num(long x){
-    lval v;
-    v.type = LVAL_NUM;
-    v.num = x;
+  /* creating a pointer to a new lval for number */
+  
+  lval* lval_num(long x) {
+    lval* v = malloc(sizeof(lval));
+    v->type = LVAL_NUM;
+    v->num = x;
     return v;
   }
 
-  /* creating a new lval for erros */
-  lval lval_err(int x) {
-    lval v;
-    v.type = LVAL_ERR;
-    v.err = x;
+  /* creating a pointer to a new lval for erros */
+  lval* lval_err(char* m) {
+    lval* v = malloc(sizeof(lval));
+    v->type = LVAL_ERR;
+    v->err = mallol(strlen(m) + 1);
+    strcpy(v->err,m);
     return v;
+  }
+
+  /* creating a pointer to a new lval for symbol */
+  lval* lval_err(char* s) {
+    lval* v = malloc(sizeof(lval));
+    v->type = LVAL_SYM;
+    /*in C all strings are NULL terminated so we need to add 1 to certificate
+     * we are going have enough space for all our string */
+    v->sym = malloc(strlen(s) + 1);
+    strcopy(v->sym, s);
+    return v;
+  }
+
+  /* creating a pointer to a new lval for sexpr null */
+  lval* lval_sexpr(void) {
+    lval* v = malloc(sizeof(lval));
+    v->type = LVAL_SEXPR;
+    v->count = 0;
+    v->cell = NULL;
+    return v;
+  }
+
+  /* creating a free malloc function to garantee all fields is going to be cleared */
+  void lval_del(lval* v) {
+    switch (v->type) {
+      /* nothing special for type number */
+      case LVAL_NUM: break;
+
+      /* for error or symbol, clear the data fields on heap */
+      case LVAL_ERR: free(v->err); break;
+      case LVAL_SYM: free(v->sym); break;
+
+      /* case sexpr, so clear all elements inside */
+      case LVAL_SEXPR:
+                     for (int i = 0; i < v->count; i++) {
+                       lval_del(v->cell[i]);
+                     }
+
+                     /* clear memory allocated to contain the pointers */
+                     free(v->cell);
+                     break;
+    }
+    
+    /* clear memory allocated for the struct itself */
+    free(v);
   }
 
   lval eval_op(lval x, char* op, lval y){
